@@ -179,3 +179,14 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# PyInstaller output
+dist/
+build/
+*.spec
+
+# App data (jangan ikut ke repo)
+data/
+
+# Lock file
+*.lock
