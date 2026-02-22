@@ -1,11 +1,11 @@
 import json
 import os
 import sys
+import dataclasses
 from app.core.reminder import StaminaReminder, TicketReminder, Notification
 
 
 def get_app_dir():
-    """Get the directory where the exe (or main.py) lives."""
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,6 +21,12 @@ def _ensure_file():
             json.dump({"reminders": []}, f)
 
 
+def _filter_fields(cls, data: dict) -> dict:
+    """Only keep keys that exist in the dataclass, ignore unknown fields."""
+    valid_keys = {f.name for f in dataclasses.fields(cls)}
+    return {k: v for k, v in data.items() if k in valid_keys}
+
+
 def load_reminders() -> list:
     _ensure_file()
     with open(DATA_FILE, "r") as f:
@@ -30,12 +36,17 @@ def load_reminders() -> list:
     for r in data.get("reminders", []):
         notifs = [Notification(**n) for n in r.get("notifications", [])]
         r["notifications"] = notifs
-        if r["type"] == "stamina":
-            r.pop("type")
-            reminders.append(StaminaReminder(**r))
-        elif r["type"] == "ticket":
-            r.pop("type")
-            reminders.append(TicketReminder(**r))
+
+        # Backward compatibility defaults
+        r.setdefault("group", None)
+        r.setdefault("max_quantity", 1)
+        r.setdefault("current_quantity", r.get("max_quantity", 1))
+
+        rtype = r.pop("type")
+        if rtype == "stamina":
+            reminders.append(StaminaReminder(**_filter_fields(StaminaReminder, r)))
+        elif rtype == "ticket":
+            reminders.append(TicketReminder(**_filter_fields(TicketReminder, r)))
     return reminders
 
 
